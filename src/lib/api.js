@@ -309,6 +309,10 @@ export async function payOrder(orderId, method = 'Cash', amount = null) {
     ok(await supabase.from('pos_orders').update(patch).eq('id', orderId).select().single())
   }
 
+  if (fullyPaid) {
+    const { error: invError } = await supabase.rpc('nexa_inventory_consume_order', { p_order_id: orderId })
+    if (invError && !String(invError.message || '').includes('does not exist')) throw new Error('Payment saved, but inventory consumption failed: ' + invError.message)
+  }
   return { paid: paymentAmount, due: Math.max(0, due - paymentAmount), fullyPaid }
 }
 
