@@ -188,6 +188,43 @@ export async function createCustomer(branchId, input) {
   return ok(await supabase.from('pos_customers').insert({ ...input, branch_id: branchId }).select().single())
 }
 
+
+async function queueDepartmentKots({order,branchId,cart,userId}) {
+  if (!order?.id || !branchId || !Array.isArray(cart) || !cart.length) return []
+  const productIds=[...new Set(cart.map(x=>x.product_id).filter(Boolean))]
+  if(!productIds.length) return []
+  const [{data:products,error:pe},{data:routes,error:re},{data:departments,error:de}] = await Promise.all([
+    supabase.from('pos_products').select('id,category_id').in('id',productIds),
+    supabase.from('pos_branch_printers').select('id,department_id,printer_name,active').eq('branch_id',branchId).eq('active',true),
+    supabase.from('pos_food_departments').select('id,name,active').eq('branch_id',branchId).eq('active',true),
+  ])
+  if(pe) throw pe; if(re) throw re; if(de) throw de
+  const categoryIds=[...new Set((products||[]).map(x=>x.category_id).filter(Boolean))]
+  let categories=[]
+  if(categoryIds.length){const r=await supabase.from('pos_categories').select('id,department_id').in('id',categoryIds);if(r.error)throw r.error;categories=r.data||[]}
+  const productMap=new Map((products||[]).map(x=>[x.id,x]))
+  const catMap=new Map(categories.map(x=>[x.id,x]))
+  const depMap=new Map((departments||[]).map(x=>[x.id,x]))
+  const routeMap=new Map((routes||[]).filter(x=>x.department_id&&x.printer_name).map(x=>[x.department_id,x]))
+  const groups=new Map()
+  for(const item of cart){
+    const product=productMap.get(item.product_id), depId=item.department_id||catMap.get(product?.category_id)?.department_id
+    if(!depId) continue
+    if(!groups.has(depId)) groups.set(depId,[])
+    groups.get(depId).push({name:item.name+(item.size?` - ${item.size}`:''),qty:Number(item.qty||1),notes:item.notes||null})
+  }
+  const tableName=order.table_id ? (await supabase.from('pos_tables').select('name').eq('id',order.table_id).maybeSingle()).data?.name : null
+  const rows=[]
+  for(const [departmentId,items] of groups){
+    const route=routeMap.get(departmentId); if(!route?.printer_name) continue
+    rows.push({branch_id:branchId,order_id:order.id,job_type:'kot',printer_type:'kitchen',department_id:departmentId,status:'pending',payload:{template:'kot',printer:route.printer_name,department:depMap.get(departmentId)?.name||'Kitchen',token:order.token_no||order.token||'',orderType:order.order_type||'',table:tableName||'',items,notes:order.notes||null,createdAt:order.created_at||new Date().toISOString()},created_by:userId||null})
+  }
+  if(!rows.length) return []
+  const result=await supabase.from('pos_print_jobs').insert(rows).select('id,department_id,status')
+  if(result.error) throw result.error
+  return result.data||[]
+}
+
 export async function saveOrder({ branchId, shiftId, customerId, tableId, riderId, type, notes, discount, cart, status = 'Processing' }) {
   const user = await requireUser()
   if (!shiftId) throw new Error('Open Day Shift before creating orders.')
@@ -244,6 +281,10 @@ export async function saveOrder({ branchId, shiftId, customerId, tableId, riderI
     unit_price: item.price,
   }))
   ok(await supabase.from('pos_order_items').insert(items))
+
+  // A placed order automatically creates one silent KOT job per configured kitchen department.
+  // Drafts never print. Departments without a printer mapping are intentionally skipped.
+  if (String(status).toUpperCase() !== 'DRAFT') await queueDepartmentKots({order,branchId,cart,userId:user.id})
 
   return order
 }
