@@ -7,7 +7,7 @@ export async function loadDashboard(branchId){
   supabase.from('orders').select('id,status,kitchen_status,order_type,grand_total,created_at').eq('branch_id',branchId).gte('created_at',since.toISOString()).order('created_at',{ascending:false}),
   supabase.from('payments').select('id,amount,status,created_at,orders!inner(branch_id)').eq('orders.branch_id',branchId).gte('created_at',since.toISOString()),
   supabase.from('inventory_ingredients').select('id,name,current_stock,min_stock,unit').eq('branch_id',branchId).eq('active',true),
-  supabase.from('riders').select('id,profile_id,branch_id,on_duty,cash_balance').eq('branch_id',branchId)
+  supabase.from('pos_riders').select('id,profile_id,branch_id,on_duty,cash_balance').eq('branch_id',branchId)
  ]); [orders,payments,ingredients,riders].forEach(x=>req(x.error));
  const ids=(riders.data||[]).map(r=>r.profile_id).filter(Boolean); let profiles=[];
  if(ids.length){const pr=await supabase.from('profiles').select('id,name,email').in('id',ids);req(pr.error);profiles=pr.data||[]}

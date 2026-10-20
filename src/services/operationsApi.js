@@ -5,7 +5,7 @@ export async function loadOperations(branchId){
  if(!isSupabaseConfigured||!supabase) return {tables:[],riders:[],deliveries:[],shift:null,movements:[]}
  const [t,r,d,deliveryOrders,s]=await Promise.all([
   supabase.from('restaurant_tables').select('*').eq('branch_id',branchId).order('name'),
-  supabase.from('riders').select('id,profile_id,branch_id,on_duty,cash_balance').eq('branch_id',branchId),
+  supabase.from('pos_riders').select('id,profile_id,branch_id,on_duty,cash_balance').eq('branch_id',branchId),
   supabase.from('deliveries').select('*,orders(id,token,invoice_no,grand_total,status,kitchen_status,delivery_status,order_type,created_at,customer_id)').eq('branch_id',branchId).order('assigned_at',{ascending:false}).limit(150),
   supabase.from('orders').select('id,branch_id,token,invoice_no,grand_total,status,kitchen_status,delivery_status,order_type,created_at,customer_id,customers(name,phone,address)').eq('branch_id',branchId).ilike('order_type','%Delivery%').neq('status','Draft').neq('status','Cancelled').order('created_at',{ascending:false}).limit(150),
   supabase.from('shifts').select('*').eq('branch_id',branchId).ilike('status','open').order('opened_at',{ascending:false}).limit(1).maybeSingle()
@@ -21,7 +21,7 @@ export async function loadOperations(branchId){
  return {tables:t.data||[],riders:riderRows,liveRiders:live.data||[],deliveries:merged,shift:s.data||null,movements}
 }
 export async function setTableStatus(id,status,orderId=null){need();const patch={status};if('occupied_order_id' in patch)patch.occupied_order_id=orderId;const {error}=await supabase.from('restaurant_tables').update(patch).eq('id',id);if(error)throw error}
-export async function setRiderDuty(id,on){need();const {error}=await supabase.from('riders').update({on_duty:on}).eq('id',id);if(error)throw error}
+export async function setRiderDuty(id,on){need();const {error}=await supabase.from('pos_riders').update({on_duty:on}).eq('id',id);if(error)throw error}
 export async function assignRider(deliveryId,riderId,orderId=null){need();let id=deliveryId;if(!id||String(id).startsWith('order-')){const q=await supabase.rpc('nexa_ensure_delivery_queue',{p_order_id:orderId||String(deliveryId).replace('order-','')});if(q.error)throw q.error;id=q.data}const {error}=await supabase.rpc('nexa_assign_rider',{p_delivery_id:id,p_rider_id:riderId});if(error)throw error}
 export async function deliveryAction(id,status,orderId=null){need();if(!id||String(id).startsWith('order-')){const q=await supabase.rpc('nexa_ensure_delivery_queue',{p_order_id:orderId||String(id).replace('order-','')});if(q.error)throw q.error;id=q.data}const {error}=await supabase.rpc('nexa_delivery_transition',{p_delivery_id:id,p_status:status});if(error)throw error}
 export async function createRestaurantTable(branchId,name,seats=4,floorName='Main Floor'){need();const {data,error}=await supabase.rpc('nexa_admin_create_table',{p_branch_id:branchId,p_name:name,p_seats:Number(seats||4),p_floor_name:floorName||'Main Floor'});if(error)throw error;return data}

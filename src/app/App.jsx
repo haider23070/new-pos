@@ -1,5 +1,6 @@
 import React,{useEffect} from 'react'
 import {useAuth}from'../context/AuthContext'
+import {normalizeRole}from'../auth/permissions'
 import Login from '../pages/auth/Login'
 import OperationsApp from './OperationsApp'
 import PublicSite from '../pages/PublicSite'
@@ -12,5 +13,9 @@ export default function App(){
  if(loading)return <div className="boot">Loading NEXA…</div>;
  if(!session)return <Login/>;
  if(!profile?.id||profile?.active===false)return <div className="boot">This account does not have active NEXA staff access.</div>;
- if(profile?.role==='Delivery Boy')return <DeliveryMobile/>;if(profile?.role==='Order Taker')return <OrderTakerMobile/>;return <OperationsApp/>
+ const role=normalizeRole(profile?.role);
+ // Hard role boundary: mobile-only staff can never fall through to the desktop application.
+ if(role==='Delivery Boy')return <DeliveryMobile/>;
+ if(role==='Order Taker')return <OrderTakerMobile/>;
+ return <OperationsApp/>
 }

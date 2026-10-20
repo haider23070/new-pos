@@ -158,6 +158,28 @@ export async function bootstrap() {
     })),
   }))
 
+  // Deals are optional until NEXA_DEALS.sql is installed. Load components explicitly instead of
+  // relying on the embedded relationship so the POS always has the item list needed for cart display/KOT routing.
+  let deals=[]
+  const dealsResult=await supabase.from('pos_deals').select('*').eq('branch_id',branchId).eq('active',true).order('name')
+  if(!dealsResult.error) deals=dealsResult.data||[]
+  let allDealItems=[]
+  if(deals.length){
+    const dir=await supabase.from('pos_deal_items').select('*').in('deal_id',deals.map(d=>d.id))
+    if(!dir.error) allDealItems=dir.data||[]
+  }
+  const productMap=new Map(products2.map(p=>[p.id,p]))
+  const dealItemsByDeal=groupBy(allDealItems,'deal_id')
+  const dealProducts=deals.map(d=>{
+    const dealItems=(dealItemsByDeal.get(d.id)||[]).map(di=>{
+      const p=productMap.get(di.product_id)
+      const v=p?.pos_product_variants?.find(x=>x.id===di.variant_id)
+      const category=categories.find(c=>c.id===p?.category_id)
+      return {...di,name:p?.name||'Item',variant_name:v?.name||'',category_id:p?.category_id||null,department_id:category?.department_id||null}
+    })
+    return {id:`deal:${d.id}`,name:d.name,price:Number(d.price||0),category_id:null,is_deal:true,deal_id:d.id,deal_items:dealItems,pos_product_variants:[{id:`dealvar:${d.id}`,product_id:`deal:${d.id}`,name:'Deal',price:Number(d.price||0),sale_price:Number(d.price||0),active:true,is_deal:true,deal_id:d.id}]}
+  })
+
   const orders = await loadOrders(branchId, riders)
 
   const managersResult = await supabase
@@ -174,7 +196,7 @@ export async function bootstrap() {
     profile,
     branch,
     categories,
-    products: products2,
+    products: [...products2,...dealProducts],
     customers,
     tables,
     riders,
@@ -191,7 +213,8 @@ export async function createCustomer(branchId, input) {
 
 async function queueDepartmentKots({order,branchId,cart,userId}) {
   if (!order?.id || !branchId || !Array.isArray(cart) || !cart.length) return []
-  const productIds=[...new Set(cart.map(x=>x.product_id).filter(Boolean))]
+  const kotItems=cart.flatMap(item=>item.is_deal&&Array.isArray(item.deal_items)&&item.deal_items.length?item.deal_items.map(di=>({product_id:di.product_id,variant_id:di.variant_id,name:di.name,size:di.variant_name||'',qty:Number(di.qty||1)*Number(item.qty||1),department_id:di.department_id||null,notes:`Deal: ${item.name}`})):[item])
+  const productIds=[...new Set(kotItems.map(x=>x.product_id).filter(id=>id&&!String(id).startsWith('deal:')))]
   if(!productIds.length) return []
   const [{data:products,error:pe},{data:routes,error:re},{data:departments,error:de}] = await Promise.all([
     supabase.from('pos_products').select('id,category_id').in('id',productIds),
@@ -207,7 +230,7 @@ async function queueDepartmentKots({order,branchId,cart,userId}) {
   const depMap=new Map((departments||[]).map(x=>[x.id,x]))
   const routeMap=new Map((routes||[]).filter(x=>x.department_id&&x.printer_name).map(x=>[x.department_id,x]))
   const groups=new Map()
-  for(const item of cart){
+  for(const item of kotItems){
     const product=productMap.get(item.product_id), depId=item.department_id||catMap.get(product?.category_id)?.department_id
     if(!depId) continue
     if(!groups.has(depId)) groups.set(depId,[])
@@ -272,14 +295,12 @@ export async function saveOrder({ branchId, shiftId, customerId, tableId, riderI
       .single()
   )
 
-  const items = cart.map((item) => ({
-    order_id: order.id,
-    product_id: item.product_id,
-    variant_id: item.variant_id,
-    name: item.name + (item.size ? ` - ${item.size}` : ''),
-    qty: item.qty,
-    unit_price: item.price,
-  }))
+  const items = cart.flatMap((item) => {
+    const parent={order_id:order.id,product_id:String(item.product_id||'').startsWith('deal:')?null:item.product_id,variant_id:String(item.variant_id||'').startsWith('dealvar:')?null:item.variant_id,name:item.name+(item.size?` - ${item.size}`:''),qty:item.qty,unit_price:item.price}
+    if(!item.is_deal||!Array.isArray(item.deal_items)||!item.deal_items.length)return[parent]
+    const children=item.deal_items.map(di=>({order_id:order.id,product_id:di.product_id||null,variant_id:di.variant_id||null,name:`↳ ${di.name}${di.variant_name?` - ${di.variant_name}`:''}`,qty:Number(di.qty||1)*Number(item.qty||1),unit_price:0,notes:`Deal component: ${item.name}`}))
+    return[parent,...children]
+  })
   ok(await supabase.from('pos_order_items').insert(items))
 
   // A placed order automatically creates one silent KOT job per configured kitchen department.
@@ -301,7 +322,11 @@ export async function updateExistingOrder(orderId, { customerId, tableId, riderI
     discount: Number(discount || 0), grand_total: grandTotal, updated_at: new Date().toISOString()
   }).eq('id', orderId))
   ok(await supabase.from('pos_order_items').delete().eq('order_id', orderId))
-  const items = cart.map(item => ({order_id: orderId, product_id: item.product_id || null, variant_id: item.variant_id || null, name: item.name + (item.size ? ` - ${item.size}` : ''), qty: Number(item.qty || 1), unit_price: Number(item.price || 0)}))
+  const items = cart.flatMap(item => {
+    const parent={order_id:orderId,product_id:String(item.product_id||'').startsWith('deal:')?null:(item.product_id||null),variant_id:String(item.variant_id||'').startsWith('dealvar:')?null:(item.variant_id||null),name:item.name+(item.size?` - ${item.size}`:''),qty:Number(item.qty||1),unit_price:Number(item.price||0)}
+    if(!item.is_deal||!Array.isArray(item.deal_items)||!item.deal_items.length)return[parent]
+    return [parent,...item.deal_items.map(di=>({order_id:orderId,product_id:di.product_id||null,variant_id:di.variant_id||null,name:`↳ ${di.name}${di.variant_name?` - ${di.variant_name}`:''}`,qty:Number(di.qty||1)*Number(item.qty||1),unit_price:0,notes:`Deal component: ${item.name}`}))]
+  })
   ok(await supabase.from('pos_order_items').insert(items))
   return ok(await supabase.from('pos_orders').select('*').eq('id', orderId).single())
 }

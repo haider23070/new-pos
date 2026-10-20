@@ -8,8 +8,8 @@ export const ROLE_PERMISSIONS = {
   Cashier: ['dashboard.view','pos.view','pos.create','pos.edit','pos.pay','pos.print','customers.view'],
   'Call Center': ['dashboard.view','pos.view','pos.create','pos.edit','pos.print','customers.view','delivery.view'],
   Dispatcher: ['dashboard.view','pos.view','pos.create','pos.edit','pos.print','customers.view','delivery.view','orders.assign_rider','operations.dispatcher'],
-  'Delivery Boy': ['dashboard.view','delivery.my_orders','delivery.update','attendance.self','settings.self'],
-  'Order Taker': ['pos.view','pos.create','pos.edit','pos.print','customers.view'],
+  'Delivery Boy': ['delivery.my_orders','delivery.update','attendance.self','settings.self'],
+  'Order Taker': ['waiter.app','pos.create','pos.edit','pos.print','customers.view'],
   'Kitchen Staff': ['kitchen.kds'],
 }
 
