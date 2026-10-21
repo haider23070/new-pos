@@ -1,0 +1,49 @@
+/* Page 5 — Take-Away Orders */
+.ta-page{padding:8px 12px;background:#f1f2f4;min-height:100%;font-size:12px;color:#333}
+.ta-card{background:#fff;border:1px solid #ddd;border-radius:3px}
+.ta-header{height:45px;border-bottom:1px solid #ddd;display:flex;align-items:center;justify-content:center}
+.ta-header h3{margin:0;font-size:16px;font-weight:600}
+.ta-count{display:inline-grid;place-items:center;margin-left:7px;min-width:22px;height:22px;padding:0 6px;background:#e8eaed;border-radius:12px;font-size:11px}
+.ta-body{padding:12px}
+.ta-tools{display:flex;justify-content:flex-end;margin-bottom:9px}
+.ta-search{display:flex;align-items:center;border:1px solid #ccd0d5;border-radius:3px;padding-left:8px;background:#fff}
+.ta-search input{height:29px;border:0;outline:0;padding:4px 7px;width:190px}
+.ta-table-wrap{overflow:auto;width:100%}
+.ta-table{width:100%;border-collapse:collapse;white-space:nowrap}
+.ta-table th,.ta-table td{border:1px solid #ddd;padding:6px 7px;text-align:center;vertical-align:middle}
+.ta-table thead th{background:#f3f3f3;font-weight:600}
+.ta-table tbody tr:hover{background:#f7faff}
+.ta-filter-row th{padding:3px;background:#fafafa}
+.ta-filter-row input{width:100%;min-width:76px;height:26px;border:1px solid #d4d7da;border-radius:2px;padding:3px 5px;font-size:10px}
+.ta-table tfoot th{background:#fafafa}
+.ta-total-label{text-align:right!important}
+.ta-number{text-align:right!important}
+.ta-uid{font-weight:600}
+.ta-remarks{white-space:normal!important;min-width:130px;max-width:220px;text-align:left!important}
+.ta-status{display:inline-flex;justify-content:center;min-width:76px;padding:4px 8px;border-radius:15px;background:#e9ecef}
+.ta-status.processing,.ta-status.pending{background:#fff2c6;color:#8a6500}
+.ta-status.ready,.ta-status.prepared{background:#dff4ff;color:#086888}
+.ta-status.paid,.ta-status.completed{background:#dff5e7;color:#18733a}
+.ta-cancel-actions,.ta-actions{display:inline-flex;gap:3px}
+.ta-cancel-actions button,.ta-actions button{width:28px;height:27px;border:0;display:grid;place-items:center;cursor:pointer}
+.ta-cancel-actions button{border-radius:14px}
+.ta-cancel-actions .danger-soft{background:#fde8e8;color:#dc3545}
+.ta-cancel-actions .secondary-soft{background:#eceff2;color:#59636e}
+.ta-cancel-actions .primary-soft{background:#e6f0ff;color:#246fd3}
+.ta-actions button{border-radius:14px;background:#e9ecef;color:#4c5661}
+.ta-actions .deliver{background:#e0f5e8;color:#198754}
+.ta-actions .detail{background:#dff4fa;color:#1684a1}
+.ta-actions .payment{background:#fde8e8;color:#dc3545}
+.ta-actions button:hover{filter:brightness(.95)}
+.ta-empty{height:90px;color:#777}
+.ta-footer{display:flex;justify-content:space-between;align-items:center;padding-top:10px;color:#666}
+.ta-footer div{display:flex}
+.ta-footer button{height:28px;min-width:29px;border:1px solid #ddd;background:#fff}
+.ta-footer .active{background:#357edd;color:#fff;border-color:#357edd}
+.ta-detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.ta-detail-grid>div{border:1px solid #e1e3e6;padding:9px;border-radius:3px}
+.ta-detail-grid span{display:block;color:#777;font-size:11px;margin-bottom:3px}
+.ta-items{margin-top:10px;border:1px solid #e1e3e6;border-radius:3px}
+.ta-items>div{display:flex;justify-content:space-between;padding:8px 10px;border-bottom:1px solid #eee}
+.ta-items>div:last-child{border-bottom:0}
+@media(max-width:700px){.ta-body{padding:7px}.ta-detail-grid{grid-template-columns:1fr}}

@@ -1,0 +1,26 @@
+NEXA POS — Mahir Phase 1 v18
+
+Phase scope:
+- New Order
+- All / Running Orders
+- Cancelled
+- Draft
+- Dine In
+- Take Away
+- Delivery
+- Third Party
+- Car Service
+- Profile / workstation settings
+
+v18 completion fixes:
+- Mahir-style order shortcut bar now operates on the order explicitly selected in the table; it no longer silently acts on the first row.
+- Added independent Invoice, Unique ID, Customer and Token column filters.
+- Added keyboard behavior for New Order (Shift+N), Running/All Orders (Shift+G), View Order (Shift+V), Edit Order (Shift+E), Edit Discount (Shift+D), Print (F8), and Payment (F10) where the user's permission allows it.
+- Delivery state exposes delivery status/address context while preserving NEXA's own backend fields.
+- Added selected-row visual state and per-order-type state accents.
+- Preserved existing NEXA Supabase/order/payment/printing APIs; no Mahir private backend is used.
+
+Verification:
+- npm install exceeded the execution timeout in the build environment.
+- npm run build therefore could not run because Vite was not installed.
+- Production build is NOT claimed as verified. Run npm install && npm run build locally before deployment.
